@@ -1,0 +1,8 @@
+/* Global styles (non-Tailwind) */
+html, body, #root { height: 100%; }
+body { margin: 0; background-color: #f9fafb; color: #111827; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica Neue, Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"; }
+
+/* Container utility mirip Tailwind container */
+.container-wide { max-width: 80rem; margin-left: auto; margin-right: auto; padding-left: 1rem; padding-right: 1rem; }
+@media (min-width: 640px) { .container-wide { padding-left: 1.5rem; padding-right: 1.5rem; } }
+@media (min-width: 1024px) { .container-wide { padding-left: 2rem; padding-right: 2rem; } }
