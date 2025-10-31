@@ -1,6 +1,13 @@
 import { useState } from 'react'
-import { Routes, Route, Link, NavLink, useLocation } from 'react-router-dom'
+import { Routes, Route, Link, NavLink, useLocation, useNavigate, Navigate } from 'react-router-dom'
 import { Bars3Icon, XMarkIcon, EnvelopeIcon, HeartIcon, ClipboardDocumentIcon, FunnelIcon, Squares2X2Icon, UserIcon, BuildingOfficeIcon, VideoCameraIcon, ClockIcon, BookOpenIcon, ArrowTopRightOnSquareIcon, TicketIcon, PlusIcon, ArrowDownIcon, ArrowUpIcon, CheckCircleIcon, DocumentArrowDownIcon, ArrowLeftIcon, MagnifyingGlassIcon, ArrowPathIcon, TrashIcon, KeyIcon, DocumentDuplicateIcon, ServerStackIcon, CircleStackIcon } from '@heroicons/react/24/outline'
+
+// Auth helpers (UI-only)
+const auth = {
+  isLoggedIn: ()=> localStorage.getItem('sp_logged_in') === 'true',
+  login: ()=> localStorage.setItem('sp_logged_in','true'),
+  logout: ()=> localStorage.removeItem('sp_logged_in'),
+}
 
 // Navbar mirip SumoPod
 function Navbar() {
@@ -185,13 +192,16 @@ function Features() {
 // Halaman Login (email OTP UI)
 function Login() {
   const [email, setEmail] = useState('')
+  const [otp, setOtp] = useState('')
+  const [step, setStep] = useState('email')
+  const navigate = useNavigate()
   return (
     <section className="container-wide py-16 flex justify-center">
       <div className="max-w-md w-full rounded-2xl border bg-white p-6 shadow-sm">
         <h2 className="text-2xl font-bold text-center">Welcome back</h2>
         <p className="mt-1 text-center text-sm text-gray-600">Sign in to your account to continue</p>
         <div className="mt-6">
-          <button className="w-full rounded-md border px-4 py-2 text-sm flex items-center justify-center gap-2">
+          <button className="w-full rounded-md border px-4 py-2 text-sm flex items-center justify-center gap-2" onClick={()=>{ auth.login(); navigate('/dashboard', { replace: true }); }}>
             <span className="inline-block h-4 w-4 rounded-sm bg-red-500" />
             Sign in with Google
           </button>
@@ -205,7 +215,14 @@ function Login() {
             <EnvelopeIcon className="h-4 w-4 text-gray-400"/>
             <input value={email} onChange={e=>setEmail(e.target.value)} type="email" placeholder="you@example.com" className="w-full px-2 py-2 outline-none text-sm" />
           </div>
-          <button className="mt-4 w-full rounded-md bg-indigo-600 px-4 py-2 text-white text-sm">Send Verification Code</button>
+          <button className="mt-4 w-full rounded-md bg-indigo-600 px-4 py-2 text-white text-sm" onClick={()=>{ if(email){ setStep('otp') } }}>Send Verification Code</button>
+          {step==='otp' && (
+            <div className="mt-4">
+              <label className="text-sm font-medium">Verification code</label>
+              <input value={otp} onChange={e=>setOtp(e.target.value)} placeholder="123456" className="mt-2 w-full rounded-md border px-3 py-2 text-sm outline-none" />
+              <button className="mt-3 w-full rounded-md bg-indigo-600 px-4 py-2 text-white text-sm" onClick={()=>{ if(otp.trim()){ auth.login(); navigate('/dashboard', { replace: true }); } }}>Verify & Sign In</button>
+            </div>
+          )}
           <p className="mt-4 text-center text-xs text-gray-500">Don't have an account? <Link className="text-indigo-600" to="/register">Create Account</Link></p>
         </div>
       </div>
@@ -388,6 +405,20 @@ function Dashboard() {
   )
 }
 
+function ProtectedRoute({ children }) {
+  if (!auth.isLoggedIn()) {
+    return <Navigate to="/login" replace />
+  }
+  return children
+}
+
+function LoginRedirect({ children }) {
+  if (auth.isLoggedIn()) {
+    return <Navigate to="/dashboard" replace />
+  }
+  return children
+}
+
 function NotFound() {
   return (
     <section className="container-wide py-16 text-center">
@@ -425,35 +456,49 @@ function App() {
         <Route path="/templates" element={<Templates />} />
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/features" element={<Features />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/dashboard" element={<DashboardLearn />} />
+        <Route path="/login" element={<LoginRedirect><Login /></LoginRedirect>} />
+        <Route path="/register" element={<LoginRedirect><Register /></LoginRedirect>} />
+        <Route path="/dashboard" element={<ProtectedRoute><DashboardLearn /></ProtectedRoute>} />
         {/* Billing routes */}
-        <Route path="/dashboard/billing" element={<DashboardBilling tab="transactions" />} />
-        <Route path="/dashboard/billing/payments" element={<DashboardBilling tab="payments" />} />
-        <Route path="/dashboard/billing/add-credit" element={<DashboardBilling tab="transactions" showAddCredit />} />
-        <Route path="/dashboard/billing/add credit" element={<DashboardBilling tab="transactions" showAddCredit />} />
-        <Route path="/dashboard/billing/redeem" element={<DashboardBilling tab="transactions" showRedeem />} />
+        <Route path="/dashboard/billing" element={<ProtectedRoute><DashboardBilling tab="transactions" /></ProtectedRoute>} />
+        <Route path="/dashboard/billing/payments" element={<ProtectedRoute><DashboardBilling tab="payments" /></ProtectedRoute>} />
+        <Route path="/dashboard/billing/add-credit" element={<ProtectedRoute><DashboardBilling tab="transactions" showAddCredit /></ProtectedRoute>} />
+        <Route path="/dashboard/billing/add credit" element={<ProtectedRoute><DashboardBilling tab="transactions" showAddCredit /></ProtectedRoute>} />
+        <Route path="/dashboard/billing/redeem" element={<ProtectedRoute><DashboardBilling tab="transactions" showRedeem /></ProtectedRoute>} />
         {/* Services routes */}
-        <Route path="/dashboard/services" element={<DashboardServices />} />
-        <Route path="/dashboard/services/manage" element={<ManageService />} />
-        <Route path="/dashboard/services/addservice" element={<AddService />} />
-        <Route path="/dashboard/services/deployservice" element={<DeployService />} />
+        <Route path="/dashboard/services" element={<ProtectedRoute><DashboardServices /></ProtectedRoute>} />
+        <Route path="/dashboard/services/manage" element={<ProtectedRoute><ManageService /></ProtectedRoute>} />
+        <Route path="/dashboard/services/addservice" element={<ProtectedRoute><AddService /></ProtectedRoute>} />
+        <Route path="/dashboard/services/deployservice" element={<ProtectedRoute><DeployService /></ProtectedRoute>} />
         {/* Infrastructure routes */}
-        <Route path="/dashboard/vps" element={<DashboardVPS />} />
-        <Route path="/dashboard/vps/createvps" element={<CreateVPS />} />
-        <Route path="/dashboard/database" element={<DashboardDatabase />} />
-        <Route path="/dashboard/database/createdatabase" element={<CreateDatabase />} />
+        <Route path="/dashboard/vps" element={<ProtectedRoute><DashboardVPS /></ProtectedRoute>} />
+        <Route path="/dashboard/vps/createvps" element={<ProtectedRoute><CreateVPS /></ProtectedRoute>} />
+        <Route path="/dashboard/database" element={<ProtectedRoute><DashboardDatabase /></ProtectedRoute>} />
+        <Route path="/dashboard/database/createdatabase" element={<ProtectedRoute><CreateDatabase /></ProtectedRoute>} />
+        {/* Account routes */}
+        <Route path="/dashboard/affiliate" element={<ProtectedRoute><DashboardAffiliate /></ProtectedRoute>} />
+        <Route path="/dashboard/settings" element={<ProtectedRoute><DashboardSettings /></ProtectedRoute>} />
+        <Route path="/dashboard/support" element={<ProtectedRoute><DashboardSupport /></ProtectedRoute>} />
+        {/* AI routes */}
+        <Route path="/dashboard/ai/quickstart" element={<ProtectedRoute><DashboardAIQuickStart /></ProtectedRoute>} />
+        <Route path="/dashboard/ai/usage" element={<ProtectedRoute><DashboardAIUsage /></ProtectedRoute>} />
+        <Route path="/dashboard/ai/models" element={<ProtectedRoute><DashboardAIModels /></ProtectedRoute>} />
+        <Route path="/dashboard/ai/keys" element={<ProtectedRoute><DashboardAIKeys /></ProtectedRoute>} />
+        <Route path="/dashboard/ai/add-credit" element={<ProtectedRoute><DashboardAIAddCredit /></ProtectedRoute>} />
+        <Route path="/dashboard/ai/add credit" element={<ProtectedRoute><DashboardAIAddCredit /></ProtectedRoute>} />
+        <Route path="/dashboard/ai/add-api-key" element={<ProtectedRoute><DashboardAIAddApiKey /></ProtectedRoute>} />
+        <Route path="/dashboard/ai/add api key" element={<ProtectedRoute><DashboardAIAddApiKey /></ProtectedRoute>} />
+        <Route path="/ai/usage" element={<DashboardAIUsage />} />
         {/* Community routes */}
-        <Route path="/dashboard/community" element={<DashboardCommunity />} />
-        <Route path="/dashboard/community/n8ntemplates/contoh" element={<N8nTemplateDetail />} />
-        <Route path="/dashboard/community/creator" element={<CreatorDashboard />} />
-        <Route path="/dashboard/community/creator/profile" element={<CreatorProfile />} />
-        <Route path="/dashboard/community/creator/create" element={<CreatorCreate />} />
+        <Route path="/dashboard/community" element={<ProtectedRoute><DashboardCommunity /></ProtectedRoute>} />
+        <Route path="/dashboard/community/n8ntemplates/contoh" element={<ProtectedRoute><N8nTemplateDetail /></ProtectedRoute>} />
+        <Route path="/dashboard/community/creator" element={<ProtectedRoute><CreatorDashboard /></ProtectedRoute>} />
+        <Route path="/dashboard/community/creator/profile" element={<ProtectedRoute><CreatorProfile /></ProtectedRoute>} />
+        <Route path="/dashboard/community/creator/create" element={<ProtectedRoute><CreatorCreate /></ProtectedRoute>} />
         {/* Learn routes */}
-        <Route path="/dashboard/learn" element={<DashboardLearn />} />
-        <Route path="/dashboard/learn/course" element={<LearnCourse />} />
-        <Route path="/dashboard/learn/course/startlearning" element={<StartLearning />} />
+        <Route path="/dashboard/learn" element={<ProtectedRoute><DashboardLearn /></ProtectedRoute>} />
+        <Route path="/dashboard/learn/course" element={<ProtectedRoute><LearnCourse /></ProtectedRoute>} />
+        <Route path="/dashboard/learn/course/startlearning" element={<ProtectedRoute><StartLearning /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       {!hideChrome && <Footer />}
@@ -462,6 +507,408 @@ function App() {
 }
 
 export default App
+
+function DashboardAIQuickStart() {
+  const [copiedBase, setCopiedBase] = useState(false)
+  const [tab, setTab] = useState('quick')
+  const baseUrl = 'https://ai.sumopod.com'
+  const apiBase = 'https://ai.sumopod.com/v1'
+  const copyBase = async () => { try { await navigator.clipboard.writeText(baseUrl); setCopiedBase(true); setTimeout(()=>setCopiedBase(false),1200) } catch(e){} }
+  return (
+    <div className="container-wide py-16 grid grid-cols-12 gap-6">
+      <DashboardSidebar />
+      <main className="col-span-12 sm:col-span-9 lg:col-span-10">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">AI Usage</h1>
+            <p className="text-sm text-gray-600">Track your AI usage and monitor spending</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link to="/dashboard/billing" className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm text-gray-700"><KeyIcon className="h-4 w-4"/> Add API Key</Link>
+            <Link to="/dashboard/billing/add-credit" className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-3 py-2 text-sm text-white"><PlusIcon className="h-4 w-4"/> Add Credit</Link>
+          </div>
+        </div>
+        <div className="mt-6 rounded-xl border bg-white p-6">
+          <div className="flex items-center gap-4">
+            <div className="h-10 w-10 rounded-lg bg-green-50 flex items-center justify-center">
+              <ClipboardDocumentIcon className="h-5 w-5 text-green-700"/>
+            </div>
+            <div>
+              <div className="text-sm text-gray-600">AI Balance</div>
+              <div className="text-xl font-semibold">$0.00</div>
+            </div>
+          </div>
+        </div>
+        <div className="mt-6 rounded-xl border bg-white">
+          <div className="flex gap-2 border-b px-4 py-3 text-sm">
+            {['quick','usage','models','keys'].map((t,i)=> (
+              <button key={t} onClick={()=>setTab(t)} className={`rounded-md px-3 py-1 ${tab===t? 'bg-indigo-50 text-indigo-700':'text-gray-700'}`}>{['Quick Start','Usage','Models','API Keys'][i]}</button>
+            ))}
+          </div>
+          {tab==='quick' && (
+            <div className="p-4 sm:p-6">
+              <div className="text-lg font-semibold">AI API Quick Start</div>
+              <p className="mt-1 text-sm text-gray-600">Get started with SumoPod AI API in minutes. Compatible with OpenAI SDK and tools.</p>
+              <div className="mt-4 rounded-xl border bg-indigo-50/40 p-3">
+                <div className="text-sm">⚡ Base URL:</div>
+                <div className="mt-2 flex items-center gap-2 rounded-lg border bg-white px-3 py-2">
+                  <input readOnly value={baseUrl} className="w-full px-2 py-1 text-sm outline-none" />
+                  <button onClick={copyBase} className="inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-sm">
+                    <DocumentDuplicateIcon className="h-4 w-4"/> {copiedBase? 'Copied' : 'Copy'}
+                  </button>
+                </div>
+              </div>
+              <div className="mt-6">
+                <div className="text-lg font-semibold">Getting Started</div>
+                <div className="mt-3 rounded-xl border bg-white">
+                  <div className="border-b px-4 py-3 text-sm font-medium">1. Authentication</div>
+                  <div className="p-4">
+                    <p className="text-sm text-gray-700">Create an API key from the <Link to="/dashboard/billing" className="text-indigo-600 underline">API Keys</Link> tab. Set a budget limit to control your spending.</p>
+                    <div className="mt-3 flex items-center gap-2 rounded-xl border bg-gray-50 px-3 py-2">
+                      <input readOnly value={'sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'} className="w-full bg-white px-2 py-2 text-sm outline-none" />
+                      <span className="rounded-md bg-indigo-50 px-2 py-1 text-xs text-indigo-700">{apiBase}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-6 rounded-xl border bg-white">
+                  <div className="border-b px-4 py-3 text-sm font-medium">2. Code Examples</div>
+                  <div className="p-4">
+                    <div className="flex flex-wrap items-center gap-2 text-sm">
+                      {['cURL','Python','JavaScript','Node.js'].map((l)=> (
+                        <button key={l} className={`rounded-md px-2 py-1 ${l==='cURL'? 'bg-indigo-50 text-indigo-700':'text-gray-700'}`}>{l}</button>
+                      ))}
+                    </div>
+                    <div className="mt-3 rounded-lg border bg-gray-900 p-4 text-gray-100 text-xs">
+{`curl https://ai.sumopod.com/v1/chat/completions \
+ -H "Content-Type: application/json" \
+ -H "Authorization: Bearer sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" \
+ -d '{
+   "model": "gpt-4o-mini",
+   "messages": [
+     { "role": "user", "content": "Say hello in a creative way" }
+   ],
+   "max_tokens": 150,
+   "temperature": 0.7
+ }'`}
+                      <div className="mt-2 flex justify-end"><button className="rounded-md border px-2 py-1">Copy</button></div>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-6 rounded-xl border bg-white p-4">
+                  <div className="text-sm font-medium">4. Popular Models</div>
+                  <div className="mt-3 grid grid-cols-12 gap-4">
+                    {[{name:'gpt-4o-mini', color:'bg-green-50 text-green-700', desc:'Fast and cost-effective for most tasks', best:'Chat, simple tasks, high volume'}, {name:'gpt-4o', color:'bg-blue-50 text-blue-700', desc:'Most capable model for complex tasks', best:'Complex reasoning, analysis, coding'}, {name:'claude-3-haiku', color:'bg-purple-50 text-purple-700', desc:'Fast Anthropic model for quick responses', best:'Quick tasks, summarization'}, {name:'deepseek-chat', color:'bg-orange-50 text-orange-700', desc:'Excellent for coding and technical tasks', best:'Programming, technical writing'}].map((m)=> (
+                      <div key={m.name} className="col-span-12 sm:col-span-6 lg:col-span-3 rounded-xl border bg-white p-4">
+                        <div className={`inline-flex h-2.5 w-2.5 items-center justify-center rounded-full ${m.color.replace('text','')} mr-2`}></div>
+                        <div className="font-medium">{m.name}</div>
+                        <p className="mt-1 text-xs text-gray-600">{m.desc}</p>
+                        <p className="mt-1 text-xs text-gray-600">Best for: {m.best}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3">
+                    <Link to="/templates" className="inline-flex items-center gap-1 text-sm text-indigo-600">View all models and pricing <ArrowTopRightOnSquareIcon className="h-4 w-4"/></Link>
+                  </div>
+                </div>
+                <div className="mt-6 rounded-xl border bg-white">
+                  <div className="border-b px-4 py-3 text-sm font-medium">n8n Integration</div>
+                  <div className="p-4">
+                    <div className="text-sm font-medium">Using with n8n Workflows</div>
+                    <ol className="mt-3 list-decimal pl-5 text-sm text-gray-700 space-y-3">
+                      <li>
+                        <div className="font-medium">Add OpenAI Node</div>
+                        <p className="text-xs text-gray-600">Add an OpenAI node to your n8n workflow from the node palette.</p>
+                      </li>
+                      <li>
+                        <div className="font-medium">Configure Credentials</div>
+                        <div className="mt-2 flex items-center gap-2 rounded-xl border bg-gray-50 px-3 py-2">
+                          <input readOnly value={'sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'} className="w-full bg-white px-2 py-2 text-sm outline-none" />
+                          <span className="rounded-md bg-indigo-50 px-2 py-1 text-xs text-indigo-700">{apiBase}</span>
+                        </div>
+                      </li>
+                      <li>
+                        <div className="font-medium">Select Model</div>
+                        <p className="text-xs text-gray-600">Choose from available models like <span className="font-mono">gpt-4o-mini</span>, <span className="font-mono">gpt-4o</span>, or others from the <Link to="/templates" className="text-indigo-600 underline">Models tab</Link>.</p>
+                      </li>
+                    </ol>
+                    <div className="mt-3 rounded-lg border bg-green-50 p-4 text-green-900 text-sm">Ready to Use! Your n8n workflow can now use SumoPod AI models with the same OpenAI node interface. Monitor usage and costs in your dashboard.</div>
+                    <div className="mt-4 grid grid-cols-12 gap-3">
+                      <Link to="/templates" className="col-span-12 sm:col-span-4 rounded-lg border px-3 py-2 text-sm">View Available Models</Link>
+                      <Link to="/dashboard/billing" className="col-span-12 sm:col-span-4 rounded-lg border px-3 py-2 text-sm">Manage API Keys</Link>
+                      <Link to="/dashboard/billing" className="col-span-12 sm:col-span-4 rounded-lg border px-3 py-2 text-sm">Monitor Usage</Link>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          {tab==='usage' && (
+            <div className="p-6 text-sm text-gray-600">Usage charts coming soon (UI placeholder).</div>
+          )}
+          {tab==='models' && (
+            <div className="p-6 text-sm text-gray-600">Models catalog coming soon (UI placeholder).</div>
+          )}
+          {tab==='keys' && (
+            <div className="p-6 text-sm text-gray-600">API keys management coming soon (UI placeholder).</div>
+          )}
+        </div>
+      </main>
+    </div>
+  )
+}
+
+
+function DashboardAIUsage() {
+  return (
+    <div className="container-wide py-16 grid grid-cols-12 gap-6">
+      <DashboardSidebar />
+      <main className="col-span-12 sm:col-span-9 lg:col-span-10">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">API Keys</h1>
+            <p className="text-sm text-gray-600">Manage your API keys and access control</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link to="/dashboard/ai/add-api-key" className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm text-gray-700"><KeyIcon className="h-4 w-4"/> Add API Key</Link>
+            <Link to="/dashboard/ai/add-credit" className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-3 py-2 text-sm text-white"><PlusIcon className="h-4 w-4"/> Add Credit</Link>
+          </div>
+        </div>
+        {/* Balance card */}
+        <div className="mt-6 rounded-xl border bg-white p-6">
+          <div className="flex items-center gap-4">
+            <div className="h-10 w-10 rounded-lg bg-green-50 flex items-center justify-center">
+              <ClipboardDocumentIcon className="h-5 w-5 text-green-700"/>
+            </div>
+            <div>
+              <div className="text-sm text-gray-600">AI Balance</div>
+              <div className="text-xl font-semibold">$0.00</div>
+            </div>
+          </div>
+        </div>
+        {/* Tabs */}
+        <div className="mt-6 rounded-xl border bg-white">
+          <div className="flex gap-2 border-b px-4 py-3 text-sm">
+            <NavLink to="/dashboard/ai/quickstart" className={({isActive})=>`rounded-md px-3 py-1 ${isActive? 'bg-indigo-50 text-indigo-700':'text-gray-700'}`}>Quick Start</NavLink>
+            <NavLink to="/dashboard/ai/usage" className={({isActive})=>`rounded-md px-3 py-1 ${isActive? 'bg-indigo-50 text-indigo-700':'text-gray-700'}`}>Usage</NavLink>
+            <NavLink to="/dashboard/ai/models" className={({isActive})=>`rounded-md px-3 py-1 ${isActive? 'bg-indigo-50 text-indigo-700':'text-gray-700'}`}>Models</NavLink>
+            <NavLink to="/dashboard/ai/keys" className={({isActive})=>`rounded-md px-3 py-1 ${isActive? 'bg-indigo-50 text-indigo-700':'text-gray-700'}`}>API Keys</NavLink>
+          </div>
+          {/* Usage content */}
+          <div className="p-4 sm:p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-medium">AI Usage History</div>
+                <p className="text-xs text-gray-600">View your AI model usage from the last 7 days</p>
+              </div>
+              <button className="inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-sm"><ArrowPathIcon className="h-4 w-4"/> Refresh</button>
+            </div>
+            <div className="mt-6 rounded-lg border bg-gray-50 p-12 text-center">
+              <div className="mx-auto mb-3 inline-flex h-12 w-12 items-center justify-center rounded-full bg-white text-gray-500">∿</div>
+              <div className="text-sm font-medium">No usage data</div>
+              <p className="mt-1 text-xs text-gray-600">No AI usage found in the last 7 days.<br/>Start using AI models to see your usage history here.</p>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  )
+}
+
+function DashboardAIModels() {
+  const rows = [
+    {model:'claude-3-5-haiku', provider:'anthropic', ctx:'200,000', inPrice:'$1.0000000', outPrice:'$5.0000000'},
+    {model:'claude-3-5-sonnet', provider:'anthropic', ctx:'200,000', inPrice:'$3.0000000', outPrice:'$15.0000000'},
+    {model:'claude-3-7-sonnet', provider:'anthropic', ctx:'200,000', inPrice:'$3.0000000', outPrice:'$15.0000000'},
+    {model:'claude-sonnet-4', provider:'anthropic', ctx:'200,000', inPrice:'$3.0000000', outPrice:'$15.0000000'},
+    {model:'gemini/gemini-2.0-flash', provider:'google', ctx:'1,048,576', inPrice:'$0.1000000', outPrice:'$0.4000000'},
+    {model:'gemini/gemini-2.0-flash-lite', provider:'google', ctx:'1,048,576', inPrice:'$0.0700000', outPrice:'$0.3000000'},
+  ]
+  return (
+    <div className="container-wide py-16 grid grid-cols-12 gap-6">
+      <DashboardSidebar />
+      <main className="col-span-12 sm:col-span-9 lg:col-span-10">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">AI Models</h1>
+            <p className="text-sm text-gray-600">Access powerful AI models and manage your usage</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link to="/dashboard/ai/add-api-key" className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm text-gray-700"><KeyIcon className="h-4 w-4"/> Add API Key</Link>
+            <Link to="/dashboard/ai/add-credit" className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-3 py-2 text-sm text-white"><PlusIcon className="h-4 w-4"/> Add Credit</Link>
+          </div>
+        </div>
+        {/* Balance card */}
+        <div className="mt-6 rounded-xl border bg-white p-6">
+          <div className="flex items-center gap-4">
+            <div className="h-10 w-10 rounded-lg bg-green-50 flex items-center justify-center">
+              <ClipboardDocumentIcon className="h-5 w-5 text-green-700"/>
+            </div>
+            <div>
+              <div className="text-sm text-gray-600">AI Balance</div>
+              <div className="text-xl font-semibold">$0.00</div>
+            </div>
+          </div>
+        </div>
+        {/* Tabs */}
+        <div className="mt-6 rounded-xl border bg-white">
+          <div className="flex gap-2 border-b px-4 py-3 text-sm">
+            <NavLink to="/dashboard/ai/quickstart" className={({isActive})=>`rounded-md px-3 py-1 ${isActive? 'bg-indigo-50 text-indigo-700':'text-gray-700'}`}>Quick Start</NavLink>
+            <NavLink to="/dashboard/ai/usage" className={({isActive})=>`rounded-md px-3 py-1 ${isActive? 'bg-indigo-50 text-indigo-700':'text-gray-700'}`}>Usage</NavLink>
+            <NavLink to="/dashboard/ai/models" className={({isActive})=>`rounded-md px-3 py-1 ${isActive? 'bg-indigo-50 text-indigo-700':'text-gray-700'}`}>Models</NavLink>
+            <NavLink to="/dashboard/ai/keys" className={({isActive})=>`rounded-md px-3 py-1 ${isActive? 'bg-indigo-50 text-indigo-700':'text-gray-700'}`}>API Keys</NavLink>
+          </div>
+          {/* Models table */}
+          <div className="p-4 sm:p-6">
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="text-left text-gray-600">
+                    <th className="border-b px-3 py-2">MODEL</th>
+                    <th className="border-b px-3 py-2">PROVIDER</th>
+                    <th className="border-b px-3 py-2">CONTEXT LENGTH</th>
+                    <th className="border-b px-3 py-2">INPUT PRICE</th>
+                    <th className="border-b px-3 py-2">OUTPUT PRICE</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r)=> (
+                    <tr key={r.model} className="border-b">
+                      <td className="px-3 py-3 font-medium">{r.model}</td>
+                      <td className="px-3 py-3"><span className={`rounded-full px-2 py-1 text-xs ${r.provider==='anthropic'?'bg-orange-50 text-orange-800':'bg-blue-50 text-blue-800'}`}>{r.provider}</span></td>
+                      <td className="px-3 py-3">{r.ctx}</td>
+                      <td className="px-3 py-3">{r.inPrice} <span className="text-xs text-gray-500">/1M tokens</span></td>
+                      <td className="px-3 py-3">{r.outPrice} <span className="text-xs text-gray-500">/1M tokens</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  )
+}
+
+function DashboardAIKeys() {
+  return (
+    <div className="container-wide py-16 grid grid-cols-12 gap-6">
+      <DashboardSidebar />
+      <main className="col-span-12 sm:col-span-9 lg:col-span-10">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">AI Models</h1>
+            <p className="text-sm text-gray-600">Access powerful AI models and manage your usage</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link to="/dashboard/ai/add-api-key" className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm text-gray-700"><KeyIcon className="h-4 w-4"/> Add API Key</Link>
+            <Link to="/dashboard/ai/add-credit" className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-3 py-2 text-sm text-white"><PlusIcon className="h-4 w-4"/> Add Credit</Link>
+          </div>
+        </div>
+        {/* Balance card */}
+        <div className="mt-6 rounded-xl border bg-white p-6">
+          <div className="flex items-center gap-4">
+            <div className="h-10 w-10 rounded-lg bg-green-50 flex items-center justify-center">
+              <ClipboardDocumentIcon className="h-5 w-5 text-green-700"/>
+            </div>
+            <div>
+              <div className="text-sm text-gray-600">AI Balance</div>
+              <div className="text-xl font-semibold">$0.00</div>
+            </div>
+          </div>
+        </div>
+        {/* Tabs */}
+        <div className="mt-6 rounded-xl border bg-white">
+          <div className="flex gap-2 border-b px-4 py-3 text-sm">
+            <NavLink to="/dashboard/ai/quickstart" className={({isActive})=>`rounded-md px-3 py-1 ${isActive? 'bg-indigo-50 text-indigo-700':'text-gray-700'}`}>Quick Start</NavLink>
+            <NavLink to="/dashboard/ai/usage" className={({isActive})=>`rounded-md px-3 py-1 ${isActive? 'bg-indigo-50 text-indigo-700':'text-gray-700'}`}>Usage</NavLink>
+            <NavLink to="/dashboard/ai/models" className={({isActive})=>`rounded-md px-3 py-1 ${isActive? 'bg-indigo-50 text-indigo-700':'text-gray-700'}`}>Models</NavLink>
+            <NavLink to="/dashboard/ai/keys" className={({isActive})=>`rounded-md px-3 py-1 ${isActive? 'bg-indigo-50 text-indigo-700':'text-gray-700'}`}>API Keys</NavLink>
+          </div>
+          {/* Keys empty state */}
+          <div className="p-4 sm:p-6">
+            <div className="rounded-lg border bg-gray-50 p-12 text-center">
+              <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-full bg-white text-gray-500"><KeyIcon className="h-6 w-6"/></div>
+              <div className="mt-2 text-sm font-medium">No API keys found</div>
+              <p className="mt-1 text-xs text-gray-600">Create your first API key to get started.</p>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  )
+}
+
+function DashboardAIAddCredit() {
+  const [amount, setAmount] = useState(0)
+  const presets = [5,10,25,50]
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+      <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow">
+        <div className="flex items-center justify-between">
+          <div className="text-xl font-bold">Top Up AI Balance</div>
+          <Link to="/dashboard/ai/quickstart" className="text-gray-400 hover:text-gray-600"><XMarkIcon className="h-5 w-5"/></Link>
+        </div>
+        <div className="mt-6 rounded-lg bg-gray-50 p-4">
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <div className="text-gray-600">Current AI Balance</div>
+              <div className="text-lg font-semibold">$0.00</div>
+            </div>
+            <div>
+              <div className="text-gray-600">IDR Balance</div>
+              <div className="text-lg font-semibold">Rp 0</div>
+            </div>
+          </div>
+        </div>
+        <div className="mt-6">
+          <label className="text-sm font-medium">Amount (USD)</label>
+          <div className="mt-2 flex items-center rounded-xl border px-3 py-2">
+            <span className="text-gray-400">$</span>
+            <input type="number" value={amount} onChange={e=>setAmount(Number(e.target.value||0))} className="ml-2 w-full px-2 py-1 outline-none" />
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {presets.map(v=> (
+              <button key={v} onClick={()=>setAmount(v)} className="rounded-lg border px-4 py-2 text-sm">${v}</button>
+            ))}
+          </div>
+        </div>
+        <div className="mt-6 flex justify-end gap-2">
+          <Link to="/dashboard/ai/quickstart" className="rounded-lg border px-4 py-2 text-sm">Cancel</Link>
+          <button className="rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white">Top Up ${amount.toFixed(2)}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function DashboardAIAddApiKey() {
+  const [name, setName] = useState('')
+  const [limit, setLimit] = useState('')
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+      <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow">
+        <div className="flex items-center justify-between">
+          <div className="text-xl font-bold">Create a Key</div>
+          <Link to="/dashboard/ai/keys" className="text-gray-400 hover:text-gray-600"><XMarkIcon className="h-5 w-5"/></Link>
+        </div>
+        <div className="mt-6">
+          <label className="text-sm font-medium">Name <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-gray-100 text-[10px] text-gray-600">i</span></label>
+          <input value={name} onChange={e=>setName(e.target.value)} placeholder='e.g. "Chatbot Key"' className="mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none" />
+        </div>
+        <div className="mt-4">
+          <label className="text-sm font-medium">Credit limit (optional) <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-gray-100 text-[10px] text-gray-600">i</span></label>
+          <input value={limit} onChange={e=>setLimit(e.target.value)} placeholder='Leave blank for unlimited' className="mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none" />
+          <p className="mt-1 text-xs text-gray-600">Set a spending limit in USD for this API key</p>
+        </div>
+        <div className="mt-6 flex justify-end">
+          <Link to="/dashboard/ai/keys" className="rounded-lg border px-4 py-2 text-sm mr-2">Cancel</Link>
+          <button className="rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white">Create</button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function AddCreditModal({ onClose, amount, setAmount }) {
   return (
@@ -540,7 +987,7 @@ function DashboardSidebar() {
         </div>
         <div>
           <div className="px-2 text-xs font-semibold text-gray-400">SERVICES</div>
-          <a className="mt-2 block rounded-md px-2 py-1 text-gray-700">AI</a>
+          <NavLink to="/dashboard/ai/quickstart" className={({isActive})=>`mt-2 block rounded-md px-2 py-1 ${isActive? 'bg-indigo-50 text-indigo-700':'text-gray-700'}`}>AI</NavLink>
           <NavLink to="/dashboard/services" className={({isActive})=>`mt-1 block rounded-md px-2 py-1 ${isActive? 'bg-indigo-50 text-indigo-700':'text-gray-700'}`}>Services</NavLink>
         </div>
         <div>
@@ -551,9 +998,9 @@ function DashboardSidebar() {
         <div>
           <div className="px-2 text-xs font-semibold text-gray-400">ACCOUNT</div>
           <NavLink to="/dashboard/billing" className={({isActive})=>`mt-2 block rounded-md px-2 py-1 ${isActive? 'bg-indigo-50 text-indigo-700':'text-gray-700'}`}>Billing</NavLink>
-          <a className="mt-1 block rounded-md px-2 py-1 text-gray-700">Affiliate</a>
-          <a className="mt-1 block rounded-md px-2 py-1 text-gray-700">Settings</a>
-          <a className="mt-1 block rounded-md px-2 py-1 text-gray-700">Support</a>
+          <NavLink to="/dashboard/affiliate" className={({isActive})=>`mt-1 block rounded-md px-2 py-1 ${isActive? 'bg-indigo-50 text-indigo-700':'text-gray-700'}`}>Affiliate</NavLink>
+          <NavLink to="/dashboard/settings" className={({isActive})=>`mt-1 block rounded-md px-2 py-1 ${isActive? 'bg-indigo-50 text-indigo-700':'text-gray-700'}`}>Settings</NavLink>
+          <NavLink to="/dashboard/support" className={({isActive})=>`mt-1 block rounded-md px-2 py-1 ${isActive? 'bg-indigo-50 text-indigo-700':'text-gray-700'}`}>Support</NavLink>
         </div>
       </nav>
     </aside>
@@ -1643,6 +2090,224 @@ function CreatorCreate() {
             <button className="mt-2 w-full rounded-md border px-4 py-2 text-sm">Simpan Draft</button>
           </div>
         </aside>
+      </main>
+    </div>
+  )
+}
+
+// New Dashboard pages
+function DashboardAffiliate() {
+  const [copied, setCopied] = useState(false)
+  const referralLink = 'https://sumopod.com/register?ref=c5e80b8a-4277-4827-9fe4-2f39eee4f0c9'
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(referralLink)
+      setCopied(true)
+      setTimeout(()=>setCopied(false), 1500)
+    } catch (e) {}
+  }
+  return (
+    <div className="container-wide py-16 grid grid-cols-12 gap-6">
+      <DashboardSidebar />
+      <main className="col-span-12 sm:col-span-9 lg:col-span-10">
+        <h1 className="text-2xl font-bold">Affiliate Program</h1>
+        <p className="mt-1 text-sm text-gray-600">Dapatkan komisi 10% dari topup terkonfirmasi oleh referral Anda</p>
+        <div className="mt-6 grid grid-cols-12 gap-4">
+          <div className="col-span-12 sm:col-span-6 lg:col-span-3 rounded-xl border bg-white p-4">
+            <div className="text-xs text-gray-500">Total Referrals</div>
+            <div className="mt-2 flex items-center gap-2">
+              <UserIcon className="h-5 w-5 text-indigo-600" />
+              <div className="text-xl font-semibold">0</div>
+            </div>
+          </div>
+          <div className="col-span-12 sm:col-span-6 lg:col-span-3 rounded-xl border bg-white p-4">
+            <div className="text-xs text-gray-500">Registered</div>
+            <div className="mt-2 flex items-center gap-2">
+              <CheckCircleIcon className="h-5 w-5 text-green-600" />
+              <div className="text-xl font-semibold">0</div>
+            </div>
+          </div>
+          <div className="col-span-12 sm:col-span-6 lg:col-span-3 rounded-xl border bg-white p-4">
+            <div className="text-xs text-gray-500">Transacted</div>
+            <div className="mt-2 flex items-center gap-2">
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-indigo-50 text-indigo-600">🛒</span>
+              <div className="text-xl font-semibold">0</div>
+            </div>
+          </div>
+          <div className="col-span-12 sm:col-span-6 lg:col-span-3 rounded-xl border bg-white p-4">
+            <div className="text-xs text-gray-500">Total Earnings</div>
+            <div className="mt-2 flex items-center gap-2">
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-green-50 text-green-700">💰</span>
+              <div className="text-xl font-semibold">Rp 0</div>
+            </div>
+          </div>
+        </div>
+        <div className="mt-6 rounded-xl border bg-white p-4 sm:p-6">
+          <div className="font-medium">Referral Link Anda</div>
+          <p className="mt-1 text-xs text-gray-500">Bagikan link unik ini dan dapatkan komisi 10% dari topup terkonfirmasi</p>
+          <div className="mt-3 flex items-center rounded-xl border px-3 py-2">
+            <input readOnly value={referralLink} className="w-full px-2 py-2 text-sm outline-none"/>
+            <button onClick={copyLink} className="inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-sm">
+              <DocumentDuplicateIcon className="h-4 w-4"/> {copied? 'Copied' : 'Copy'}
+            </button>
+          </div>
+        </div>
+        <div className="mt-6 rounded-xl border bg-white p-4 sm:p-6">
+          <div className="font-medium">Cara Kerja</div>
+          <div className="mt-4 grid gap-4">
+            <div className="flex items-start gap-3">
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-indigo-50 text-indigo-700 text-sm font-semibold">1</span>
+              <div>
+                <div className="text-sm font-medium">Bagikan Link Anda</div>
+                <p className="text-xs text-gray-600">Sebarkan link referral ke teman, keluarga, atau audiens Anda</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-indigo-50 text-indigo-700 text-sm font-semibold">2</span>
+              <div>
+                <div className="text-sm font-medium">Mereka Mendaftar</div>
+                <p className="text-xs text-gray-600">Saat mereka membuat akun melalui link, mereka menjadi referral Anda</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-indigo-50 text-indigo-700 text-sm font-semibold">3</span>
+              <div>
+                <div className="text-sm font-medium">Dapat Komisi</div>
+                <p className="text-xs text-gray-600">Komisi 10% dari topup terkonfirmasi otomatis dikreditkan ke saldo Anda</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="mt-6 rounded-xl border bg-white p-4 sm:p-6">
+          <div className="font-medium">Ketentuan Komisi</div>
+          <div className="mt-4 space-y-4">
+            <div className="rounded-lg border bg-blue-50 p-4">
+              <div className="text-sm font-medium text-blue-900">Komisi 10% dari topup terkonfirmasi oleh referral Anda</div>
+              <p className="mt-1 text-xs text-blue-800">Komisi otomatis masuk saldo • Berlaku 1 tahun sejak pendaftaran</p>
+              <p className="mt-1 text-xs text-blue-800">Tidak berlaku untuk voucher, kupon, atau bonus credits</p>
+            </div>
+            <div className="rounded-lg border bg-orange-50 p-4">
+              <div className="text-sm font-medium text-orange-900">Program afiliasi berakhir 1 tahun setelah registrasi</div>
+              <p className="mt-1 text-xs text-orange-800">Dapat diperpanjang • Hubungi support untuk opsi perpanjangan</p>
+            </div>
+          </div>
+        </div>
+        <div className="mt-6 rounded-xl border bg-white p-4 sm:p-6">
+          <div className="font-medium">Aktivitas Referral</div>
+          <div className="mt-4 rounded-lg border bg-gray-50 p-10 text-center">
+            <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-full bg-white">👥</div>
+            <div className="mt-2 text-sm font-medium">Belum ada aktivitas referral</div>
+            <p className="mt-1 text-xs text-gray-600">Mulai bagikan link Anda untuk melihat registrasi dan transaksi topup di sini</p>
+          </div>
+        </div>
+      </main>
+    </div>
+  )
+}
+
+function DashboardSettings() {
+  const [firstName, setFirstName] = useState('Habib')
+  const [lastName, setLastName] = useState("Syafi'i")
+  const [company, setCompany] = useState('Habuk82')
+  const [website, setWebsite] = useState('https://example.com')
+  const [marketingEmails, setMarketingEmails] = useState(true)
+  return (
+    <div className="container-wide py-16 grid grid-cols-12 gap-6">
+      <DashboardSidebar />
+      <main className="col-span-12 sm:col-span-9 lg:col-span-10">
+        <h1 className="text-2xl font-bold">Settings</h1>
+        <p className="mt-1 text-sm text-gray-600">Kelola pengaturan akun dan preferensi Anda</p>
+        <div className="mt-6 rounded-xl border bg-white p-4 sm:p-6">
+          <div className="font-medium">Informasi Profil</div>
+          <div className="mt-4 grid grid-cols-12 gap-4">
+            <div className="col-span-12 sm:col-span-6">
+              <label className="text-sm font-medium">First Name</label>
+              <input value={firstName} onChange={e=>setFirstName(e.target.value)} className="mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none" />
+            </div>
+            <div className="col-span-12 sm:col-span-6">
+              <label className="text-sm font-medium">Last Name</label>
+              <input value={lastName} onChange={e=>setLastName(e.target.value)} className="mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none" />
+            </div>
+            <div className="col-span-12 sm:col-span-6">
+              <label className="text-sm font-medium">Email</label>
+              <input value={'habuk82@gmail.com'} readOnly className="mt-2 w-full rounded-xl border bg-gray-50 px-3 py-2 text-sm text-gray-600 outline-none" />
+              <p className="mt-1 text-xs text-gray-500">Email tidak dapat diubah</p>
+            </div>
+            <div className="col-span-12 sm:col-span-6">
+              <label className="text-sm font-medium">Company</label>
+              <input value={company} onChange={e=>setCompany(e.target.value)} className="mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none" />
+            </div>
+            <div className="col-span-12">
+              <label className="text-sm font-medium">Website</label>
+              <input value={website} onChange={e=>setWebsite(e.target.value)} className="mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none" placeholder="https://example.com" />
+            </div>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white"><ClipboardDocumentIcon className="h-4 w-4"/> Save Profile</button>
+          </div>
+        </div>
+        <div className="mt-6 rounded-xl border bg-white p-4 sm:p-6">
+          <div className="font-medium">Preferensi Email Marketing</div>
+          <div className="mt-4 flex items-center justify-between rounded-lg border bg-gray-50 p-4">
+            <div>
+              <div className="text-sm font-medium">Marketing Emails</div>
+              <p className="text-xs text-gray-600">Terima promosi, update produk, dan penawaran spesial dari SumoPod.</p>
+            </div>
+            <button onClick={()=>setMarketingEmails(v=>!v)} className={`relative inline-flex h-6 w-11 items-center rounded-full ${marketingEmails? 'bg-indigo-600' : 'bg-gray-300'}`}>
+              <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${marketingEmails? 'translate-x-5' : 'translate-x-1'}`}></span>
+            </button>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <button className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white"><ClipboardDocumentIcon className="h-4 w-4"/> Save Preferences</button>
+          </div>
+        </div>
+      </main>
+    </div>
+  )
+}
+
+function DashboardSupport() {
+  return (
+    <div className="container-wide py-16 grid grid-cols-12 gap-6">
+      <DashboardSidebar />
+      <main className="col-span-12 sm:col-span-9 lg:col-span-10">
+        <h1 className="text-2xl font-bold">Support</h1>
+        <p className="mt-1 text-sm text-gray-600">Dapatkan bantuan untuk layanan SumoPod Anda</p>
+        <div className="mt-6 grid grid-cols-12 gap-4">
+          <div className="col-span-12 lg:col-span-6 rounded-xl border bg-white p-4 sm:p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <EnvelopeIcon className="h-5 w-5 text-indigo-600"/>
+                <div className="font-medium">Email Support</div>
+              </div>
+            </div>
+            <p className="mt-2 text-sm text-gray-600">Kirim email untuk bantuan detail</p>
+            <div className="mt-2 text-sm">Email: <span className="font-medium">support@sumopod.com</span></div>
+            <div className="mt-4">
+              <a href="mailto:support@sumopod.com" className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white"><EnvelopeIcon className="h-5 w-5"/> Send Email</a>
+            </div>
+          </div>
+          <div className="col-span-12 lg:col-span-6 rounded-xl border bg-white p-4 sm:p-6">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-green-50 text-green-700">🟢</span>
+              <div className="font-medium">WhatsApp Support</div>
+            </div>
+            <p className="mt-2 text-sm text-gray-600">Chat langsung via WhatsApp</p>
+            <div className="mt-2 text-sm">WhatsApp: <span className="font-medium">+62 851-9005-2577</span></div>
+            <div className="mt-4">
+              <a href="https://wa.me/6285190052577" target="_blank" rel="noreferrer" className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm text-white">💬 Chat on WhatsApp</a>
+            </div>
+          </div>
+        </div>
+        <div className="mt-6 rounded-xl border bg-white p-4 sm:p-6">
+          <div className="font-medium">Sebelum menghubungi support</div>
+          <ul className="mt-4 list-disc space-y-2 pl-6 text-sm text-gray-700">
+            <li>Sertakan ID layanan atau nama saat melapor masalah</li>
+            <li>Jelaskan masalah secara detail beserta langkah reproduksi</li>
+            <li>Tambahkan pesan error yang muncul</li>
+            <li>Beritahu apa yang ingin Anda capai</li>
+          </ul>
+        </div>
       </main>
     </div>
   )
